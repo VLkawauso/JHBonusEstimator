@@ -54,7 +54,7 @@ def solve_bonus_range(disp_i, disp_s, base_t):
 # --- Streamlit UI部分 ---
 st.set_page_config(page_title="Bonus Estimator", page_icon="🎯")
 
-st.title("🎯 ジャストヒットボーナス推定")
+st.title("ジャストヒットボーナス推定")
 st.write("みかけの数値から、あり得るボーナス値の範囲を逆算します。")
 
 # サイドバーまたはメイン画面に入力欄を作成
