@@ -65,7 +65,7 @@ with st.container():
     with col2:
         disp_s = st.number_input("みかけの表現力 (0-100)", min_value=0, max_value=100, value=99)
     
-    base_t = st.number_input("既知の基礎技法点 (0-1250)", min_value=0, max_value=1250, value=500)
+    base_t = st.number_input("既知の基礎技法点 (0-1250)", min_value=0, max_value=1250, value=1000)
 
 st.divider()
 
