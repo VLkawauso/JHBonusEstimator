@@ -74,7 +74,7 @@ if mode == "【予測】みかけの数値から推定する":
     with col2:
         disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
     
-    base_t_est = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
+    base_t_est = st.number_input("基礎技法点 (0-1250)", 0, 1250, 800)
 
     if st.button("あり得る範囲を計算", type="primary", use_container_width=True):
         bonus_list = solve_bonus_range(disp_i, disp_s, base_t_est)
@@ -95,11 +95,11 @@ else:
     
     col1, col2 = st.columns(2)
     with col1:
-        real_i = st.number_input("実際の抑揚 (0-1000)", 0, 1000, 800)
+        real_i = st.number_input("実際の抑揚 (0-1000)", 0, 1000, 990)
     with col2:
-        real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 73000)
+        real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 99750)
     
-    base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
+    base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 800)
 
     if st.button("ボーナスを特定する", type="primary", use_container_width=True):
         best_t, min_diff = 0, float('inf')
