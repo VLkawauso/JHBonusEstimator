@@ -34,7 +34,6 @@ def calculate_expressiveness(i_raw, t_raw):
     return res
 
 def solve_bonus_range(disp_i, disp_s, base_t):
-    # みかけ数値から範囲を定義
     i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.0001
     s_min, s_max = disp_s * 1000, (disp_s + 1) * 1000 - 1
     possible_bonus = []
@@ -55,24 +54,52 @@ st.set_page_config(page_title="JH Bonus Analyzer", page_icon="🎯")
 
 st.title("🎯 ジャストヒットボーナス解析")
 
+# モード選択（みかけ推定をデフォルトに）
 mode = st.radio(
     "解析に使用するデータの精度を選択してください",
-    ("【正確】実数値から特定する", "【予測】みかけの数値から推定する"),
+    ("【予測】みかけの数値から推定する", "【正確】実数値から特定する"),
     horizontal=True
 )
 
 st.divider()
 
-if mode == "【正確】実数値から特定する":
-    st.subheader("📋 詳細リザルト解析モード")
-    st.write("内部ログや詳細画面の正確な数値を入力してください。")
+# 各モード共通の入力順序: 抑揚 -> 表現力 -> 技法点
+if mode == "【予測】みかけの数値から推定する":
+    st.subheader("🔍 みかけ数値推定モード")
+    st.write("リザルト画面の整数値（0-100）を入力してください。")
     
     col1, col2 = st.columns(2)
     with col1:
-        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0, help="10倍スケールの整数値")
-        real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 73000, help="1000倍スケールの整数値")
+        disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99)
     with col2:
-        base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500, help="1.25*10倍スケールの整数値")
+        disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
+    
+    base_t_est = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
+
+    if st.button("あり得る範囲を計算", type="primary", use_container_width=True):
+        bonus_list = solve_bonus_range(disp_i, disp_s, base_t_est)
+        if bonus_list:
+            b_min, b_max = min(bonus_list), max(bonus_list)
+            st.success("計算完了")
+            if b_min == b_max:
+                st.metric("確定ボーナス値", f"{b_min} 点")
+            else:
+                st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
+                st.info(f"候補となる値が {len(bonus_list)} 通り存在します。")
+        else:
+            st.error("条件に合うボーナス値が見つかりませんでした。入力値を確認してください。")
+
+else:
+    st.subheader("📋 詳細リザルト解析モード")
+    st.write("内部ログ等の正確な数値を入力してください。")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0)
+    with col2:
+        real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 73000)
+    
+    base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
 
     if st.button("ボーナスを特定する", type="primary", use_container_width=True):
         best_t, min_diff = 0, float('inf')
@@ -88,31 +115,6 @@ if mode == "【正確】実数値から特定する":
         else:
             st.success("解析完了")
             st.metric("ジャストヒットボーナス", f"{bonus} 点")
-            st.info(f"この表現力スコアに最も近い合計技法点は {best_t} 点です。")
-
-else:
-    st.subheader("🔍 みかけ数値推定モード")
-    st.write("リザルト画面に表示されている 0〜100 の整数値を入力してください。")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99)
-        base_t_est = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
-    with col2:
-        disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
-
-    if st.button("あり得る範囲を計算", type="primary", use_container_width=True):
-        bonus_list = solve_bonus_range(disp_i, disp_s, base_t_est)
-        if bonus_list:
-            b_min, b_max = min(bonus_list), max(bonus_list)
-            st.success("計算完了")
-            if b_min == b_max:
-                st.metric("確定ボーナス値", f"{b_min} 点")
-            else:
-                st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
-                st.write(f"候補となる値が {len(bonus_list)} 通り存在します。")
-        else:
-            st.error("条件に合うボーナス値が見つかりませんでした。入力値を確認してください。")
+            st.caption(f"（内部合計技法点: {best_t}）")
 
 st.divider()
-st.caption("© 2026 Zawasow_lab")
