@@ -52,7 +52,7 @@ def solve_bonus_range(disp_i, disp_s, base_t):
 # --- Streamlit UI ---
 st.set_page_config(page_title="JH Bonus Analyzer", page_icon="🎯")
 
-st.title("🎯 ジャストヒットボーナス解析")
+st.title("💥 ジャストヒットボーナス解析")
 
 # モード選択（みかけ推定をデフォルトに）
 mode = st.radio(
