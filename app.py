@@ -2,6 +2,7 @@ import streamlit as st
 
 # --- ロジック部分 ---
 def calculate_expressiveness(i_raw, t_raw):
+    # 内部計算用（0-100スケール）
     i_axis = [0.0, 45.0, 70.0, 80.0, 90.0, 100.0]
     t_axis = [0.0, 40.0, 60.0, 80.0, 90.0, 100.0]
     grid = [
@@ -33,6 +34,7 @@ def calculate_expressiveness(i_raw, t_raw):
     return res
 
 def solve_bonus_range(disp_i, disp_s, base_t):
+    # みかけの数値（整数）から範囲を定義
     i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.0001
     s_min, s_max = disp_s * 1000, (disp_s + 1) * 1000 - 1
     possible_bonus = []
@@ -46,43 +48,57 @@ def solve_bonus_range(disp_i, disp_s, base_t):
             bonus = total_t - base_t
             if bonus >= 0:
                 possible_bonus.append(bonus)
-            
-    if not possible_bonus:
-        return None
-    return min(possible_bonus), max(possible_bonus)
+    return possible_bonus
 
-# --- Streamlit UI部分 ---
-st.set_page_config(page_title="Bonus Estimator", page_icon="🎯")
+# --- Streamlit UI ---
+st.set_page_config(page_title="Expressiveness Solver", page_icon="📊")
 
-st.title("ジャストヒットボーナス推定")
-st.write("みかけの数値から、あり得るボーナス値の範囲を逆算します。")
+st.title("表現力解析ツール")
 
-# サイドバーまたはメイン画面に入力欄を作成
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        disp_i = st.number_input("みかけの抑揚 (0-100)", min_value=0, max_value=100, value=99)
-    with col2:
-        disp_s = st.number_input("みかけの表現力 (0-100)", min_value=0, max_value=100, value=99)
-    
-    base_t = st.number_input("既知の基礎技法点 (0-1250)", min_value=0, max_value=1250, value=1000)
+# モード切り替え
+mode = st.radio(
+    "計算モードを選択してください",
+    ("ボーナス範囲の逆算（みかけの数値から）", "表現力の直接計算（正確な数値から）"),
+    horizontal=True
+)
 
 st.divider()
 
-if st.button("範囲を計算する", type="primary", use_container_width=True):
-    result = solve_bonus_range(disp_i, disp_s, base_t)
+if mode == "ボーナス範囲の逆算（みかけの数値から）":
+    st.subheader("ジャストヒットボーナス推定")
+    col1, col2 = st.columns(2)
+    with col1:
+        disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99, key="di")
+    with col2:
+        disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99, key="ds")
     
-    if result:
-        b_min, b_max = result
-        st.success("計算が完了しました！")
-        
-        # 大きな文字で表示
-        if b_min == b_max:
-            st.metric("推定ボーナス値", f"{b_min} 点", help="この値で確定です")
-        else:
-            st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
-            st.info(f"ボーナス値は {b_min}点 から {b_max}点 の間のいずれかです。")
-    else:
-        st.error("条件を満たすボーナス値が見つかりませんでした。入力値を確認してください。")
+    base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500, key="bt")
 
-st.caption("© 2026 Zawasow30 - Developed with Streamlit")
+    if st.button("範囲を計算", type="primary", use_container_width=True):
+        bonus_list = solve_bonus_range(disp_i, disp_s, base_t)
+        if bonus_list:
+            b_min, b_max = min(bonus_list), max(bonus_list)
+            st.success(f"推定結果: {b_min} ～ {b_max} 点")
+            if b_min == b_max:
+                st.info(f"ボーナス値は {b_min}点で確定です。")
+        else:
+            st.error("矛盾検知: 条件に合うボーナス値が存在しません。")
+
+else:
+    st.subheader("表現力の直接計算")
+    col1, col2 = st.columns(2)
+    with col1:
+        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0, step=1.0) / 10.0
+    with col2:
+        # 技法点(1250点満点)を入力してもらい、内部で0-100に変換
+        real_t_val = st.number_input("実際の技法点 (0-1250)", 0.0, 1250.0, 625.0, step=1.0)
+        real_t = real_t_val / 12.5
+
+    if st.button("表現力を計算", type="primary", use_container_width=True):
+        score = calculate_expressiveness(real_i, real_t)
+        rounded_score = int(round(score))
+        st.metric("算出された表現力 (100000点満点)", f"{rounded_score} 点")
+        st.write(f"みかけの表現力表示: **{rounded_score // 1000}**")
+
+st.divider()
+st.caption("© 2026 Zawasow_lab")
