@@ -2,7 +2,7 @@ import streamlit as st
 
 # --- ロジック部分 ---
 def calculate_expressiveness(i_raw, t_raw):
-    # 内部計算用（0-100スケール）
+    # 内部計算（0-100スケール）
     i_axis = [0.0, 45.0, 70.0, 80.0, 90.0, 100.0]
     t_axis = [0.0, 40.0, 60.0, 80.0, 90.0, 100.0]
     grid = [
@@ -34,71 +34,85 @@ def calculate_expressiveness(i_raw, t_raw):
     return res
 
 def solve_bonus_range(disp_i, disp_s, base_t):
-    # みかけの数値（整数）から範囲を定義
+    # みかけ数値から範囲を定義
     i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.0001
     s_min, s_max = disp_s * 1000, (disp_s + 1) * 1000 - 1
     possible_bonus = []
     
     for total_t in range(0, 1251):
         t_raw = total_t / 12.5
-        score_at_imin = calculate_expressiveness(i_min / 10.0, t_raw)
-        score_at_imax = calculate_expressiveness(i_max / 10.0, t_raw)
+        score_imin = calculate_expressiveness(i_min / 10.0, t_raw)
+        score_imax = calculate_expressiveness(i_max / 10.0, t_raw)
         
-        if not (score_at_imax < s_min or score_at_imin > s_max):
+        if not (score_imax < s_min or score_imin > s_max):
             bonus = total_t - base_t
             if bonus >= 0:
                 possible_bonus.append(bonus)
     return possible_bonus
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Expressiveness Solver", page_icon="📊")
+st.set_page_config(page_title="JH Bonus Analyzer", page_icon="🎯")
 
-st.title("表現力解析ツール")
+st.title("🎯 ジャストヒットボーナス解析")
 
-# モード切り替え
 mode = st.radio(
-    "計算モードを選択してください",
-    ("ボーナス範囲の逆算（みかけの数値から）", "表現力の直接計算（正確な数値から）"),
+    "解析に使用するデータの精度を選択してください",
+    ("【正確】実数値から特定する", "【予測】みかけの数値から推定する"),
     horizontal=True
 )
 
 st.divider()
 
-if mode == "ボーナス範囲の逆算（みかけの数値から）":
-    st.subheader("ジャストヒットボーナス推定")
+if mode == "【正確】実数値から特定する":
+    st.subheader("📋 詳細リザルト解析モード")
+    st.write("内部ログや詳細画面の正確な数値を入力してください。")
+    
     col1, col2 = st.columns(2)
     with col1:
-        disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99, key="di")
+        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0, help="10倍スケールの整数値")
+        real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 73000, help="1000倍スケールの整数値")
     with col2:
-        disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99, key="ds")
-    
-    base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500, key="bt")
+        base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500, help="1.25*10倍スケールの整数値")
 
-    if st.button("範囲を計算", type="primary", use_container_width=True):
-        bonus_list = solve_bonus_range(disp_i, disp_s, base_t)
-        if bonus_list:
-            b_min, b_max = min(bonus_list), max(bonus_list)
-            st.success(f"推定結果: {b_min} ～ {b_max} 点")
-            if b_min == b_max:
-                st.info(f"ボーナス値は {b_min}点で確定です。")
+    if st.button("ボーナスを特定する", type="primary", use_container_width=True):
+        best_t, min_diff = 0, float('inf')
+        for t_int in range(0, 1251):
+            score = calculate_expressiveness(real_i / 10.0, t_int / 12.5)
+            diff = abs(score - real_s)
+            if diff < min_diff:
+                min_diff, best_t = diff, t_int
+        
+        bonus = best_t - base_t
+        if bonus < 0:
+            st.error(f"矛盾を検知しました。基礎点({base_t})が算出合計値({best_t})を上回っています。")
         else:
-            st.error("矛盾検知: 条件に合うボーナス値が存在しません。")
+            st.success("解析完了")
+            st.metric("ジャストヒットボーナス", f"{bonus} 点")
+            st.info(f"この表現力スコアに最も近い合計技法点は {best_t} 点です。")
 
 else:
-    st.subheader("表現力の直接計算")
+    st.subheader("🔍 みかけ数値推定モード")
+    st.write("リザルト画面に表示されている 0〜100 の整数値を入力してください。")
+    
     col1, col2 = st.columns(2)
     with col1:
-        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0, step=1.0) / 10.0
+        disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99)
+        base_t_est = st.number_input("基礎技法点 (0-1250)", 0, 1250, 500)
     with col2:
-        # 技法点(1250点満点)を入力してもらい、内部で0-100に変換
-        real_t_val = st.number_input("実際の技法点 (0-1250)", 0.0, 1250.0, 625.0, step=1.0)
-        real_t = real_t_val / 12.5
+        disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
 
-    if st.button("表現力を計算", type="primary", use_container_width=True):
-        score = calculate_expressiveness(real_i, real_t)
-        rounded_score = int(round(score))
-        st.metric("算出された表現力 (100000点満点)", f"{rounded_score} 点")
-        st.write(f"みかけの表現力表示: **{rounded_score // 1000}**")
+    if st.button("あり得る範囲を計算", type="primary", use_container_width=True):
+        bonus_list = solve_bonus_range(disp_i, disp_s, base_t_est)
+        if bonus_list:
+            b_min, b_max = min(bonus_list), max(bonus_list)
+            st.success("計算完了")
+            if b_min == b_max:
+                st.metric("確定ボーナス値", f"{b_min} 点")
+            else:
+                st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
+                st.write(f"候補となる値が {len(bonus_list)} 通り存在します。")
+        else:
+            st.error("条件に合うボーナス値が見つかりませんでした。入力値を確認してください。")
 
 st.divider()
 st.caption("© 2026 Zawasow_lab")
