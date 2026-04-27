@@ -85,7 +85,6 @@ if mode == "【予測】みかけの数値から推定する":
                 st.metric("確定ボーナス値", f"{b_min} 点")
             else:
                 st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
-                #st.info(f"候補となる値が {len(bonus_list)} 通り存在します。")
         else:
             st.error("条件に合うボーナス値が見つかりませんでした。入力値を確認してください。")
 
