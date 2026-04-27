@@ -118,3 +118,4 @@ else:
             st.caption(f"（内部合計技法点: {best_t}）")
 
 st.divider()
+st.caption("© 2026 Zawasow_lab")
