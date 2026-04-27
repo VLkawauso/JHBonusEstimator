@@ -95,7 +95,7 @@ else:
     
     col1, col2 = st.columns(2)
     with col1:
-        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000.0, 800.0)
+        real_i = st.number_input("実際の抑揚 (0-1000)", 0.0, 1000, 800)
     with col2:
         real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 73000)
     
