@@ -34,19 +34,31 @@ def calculate_expressiveness(i_raw, t_raw):
     return res
 
 def solve_bonus_range(disp_i, disp_s, base_t):
-    i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.0001
-    s_min, s_max = disp_s * 1000, (disp_s + 1) * 1000 - 1
+    # みかけの数値から実数値の範囲を定義
+    i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.1
+    s_min, s_max = disp_s * 1000.0, (disp_s + 1) * 1000.0 - 1.0
+    
     possible_bonus = []
     
+    # 技法点(total_t)を全探索
     for total_t in range(0, 1251):
         t_raw = total_t / 12.5
-        score_imin = calculate_expressiveness(i_min / 10.0, t_raw)
-        score_imax = calculate_expressiveness(i_max / 10.0, t_raw)
         
-        if not (score_imax < s_min or score_imin > s_max):
+        # あなたの指摘に基づいた境界条件のチェック
+        # 1. 最も表現力が出にくい条件（抑揚最大）で、s_minを超えられるか
+        score_at_min_potential = calculate_expressiveness(i_max / 10.0, t_raw)
+        
+        # 2. 最も表現力が出やすい条件（抑揚最小）で、s_maxを下回れるか
+        score_at_max_potential = calculate_expressiveness(i_min / 10.0, t_raw)
+        
+        # 判定ロジック:
+        # その技法点(total_t)において、表現力のとり得る範囲 [score_at_min_potential, score_at_max_potential] が
+        # 画面表示上の表現力範囲 [s_min, s_max] と重なっているかを確認[cite: 1]
+        if not (score_at_max_potential < s_min or score_at_min_potential > s_max):
             bonus = total_t - base_t
             if bonus >= 0:
                 possible_bonus.append(bonus)
+                
     return possible_bonus
 
 # --- Streamlit UI ---
