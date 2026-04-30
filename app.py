@@ -60,7 +60,7 @@ def solve_possible_bonus_range(display_intonation, display_expressiveness, base_
     intonation_max = min(display_intonation * 10 + 9, 1000)
     
     expressiveness_min = display_expressiveness * 1000
-    expressiveness_max = min(display_expressiveness * 1000 + 999, 100000)
+    expressiveness_max = min(display_expressiveness * 1000 + 999, calculate_expressiveness_score(intonation_max / 10.0, 100.0))
     
     possible_bonuses = []
     
