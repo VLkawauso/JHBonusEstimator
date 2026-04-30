@@ -35,8 +35,8 @@ def calculate_expressiveness(i_raw, t_raw):
 
 def solve_bonus_range(disp_i, disp_s, base_t):
     # みかけの数値から実数値の範囲を定義
-    i_min, i_max = disp_i * 10.0, (disp_i + 1) * 10.0 - 0.1
-    s_min, s_max = disp_s * 1000.0, (disp_s + 1) * 1000.0 - 1.0
+    i_min, i_max = disp_i * 10, min(disp_i * 10 + 9, 1000)
+    s_min, s_max = disp_s * 1000, min(disp_s * 1000 + 999,100000)
     
     possible_bonus = []
     
