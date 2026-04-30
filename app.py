@@ -18,11 +18,9 @@ def calculate_expressiveness_score(intonation_raw, technique_raw):
     ]
     
     def find_axis_index(value, axis):
-        if value >= 100.0: 
-            return len(axis) - 2
+        if value >= 100.0: return len(axis) - 2
         for i in range(len(axis) - 1):
-            if axis[i] <= value < axis[i+1]: 
-                return i
+            if axis[i] <= value < axis[i+1]: return i
         return len(axis) - 2
 
     idx_i = find_axis_index(intonation_raw, intonation_axis)
@@ -31,134 +29,91 @@ def calculate_expressiveness_score(intonation_raw, technique_raw):
     intonation_ratio = (intonation_raw - intonation_axis[idx_i]) / (intonation_axis[idx_i+1] - intonation_axis[idx_i])
     technique_ratio = (technique_raw - technique_axis[idx_t]) / (technique_axis[idx_t+1] - technique_axis[idx_t])
 
-    score_q11 = score_grid[idx_i][idx_t]
-    score_q12 = score_grid[idx_i][idx_t+1]
-    score_q21 = score_grid[idx_i+1][idx_t]
-    score_q22 = score_grid[idx_i+1][idx_t+1]
+    q11, q12, q21, q22 = score_grid[idx_i][idx_t], score_grid[idx_i][idx_t+1], score_grid[idx_i+1][idx_t], score_grid[idx_i+1][idx_t+1]
 
-    final_score = (
-        (1 - intonation_ratio) * (1 - technique_ratio) * score_q11 +
-        intonation_ratio * (1 - technique_ratio) * score_q21 +
-        (1 - intonation_ratio) * technique_ratio * score_q12 +
-        intonation_ratio * technique_ratio * score_q22
-    )
-    return final_score
+    return (1-intonation_ratio)*(1-technique_ratio)*q11 + intonation_ratio*(1-technique_ratio)*q21 + (1-intonation_ratio)*technique_ratio*q12 + intonation_ratio*technique_ratio*q22
 
 def solve_possible_bonus_range(display_intonation, display_expressiveness, base_technique_points):
     """
-    画面表示値からあり得るジャストヒットボーナスの範囲を特定する。
+    境界条件に基づき、合計技法点の範囲からボーナス範囲を類推する。
     """
+    # 内部的な実数値の範囲を定義[cite: 3]
     intonation_min = display_intonation * 10
     intonation_max = min(display_intonation * 10 + 9, 1000)
-    
     expressiveness_min = display_expressiveness * 1000
-    # 上限値の計算
-    expressiveness_max = min(display_expressiveness * 1000 + 999, calculate_expressiveness_score(intonation_max / 10.0, 100.0))
+    expressiveness_max = min(display_expressiveness * 1000 + 999, 100000)
     
+    # 合計技法点の最小値を探す: 
+    # 「抑揚が最大」のときに「表現力の最小値(s_min)」を達成するために必要な最小の技法点[cite: 3]
+    min_total_t = None
+    for t in range(0, 1251):
+        if calculate_expressiveness_score(intonation_max / 10.0, t / 12.5) >= expressiveness_min:
+            min_total_t = t
+            break
+            
+    # 合計技法点の最大値を探す: 
+    # 「抑揚が最小」のときに「表現力の最大値(s_max)」を達成できる最大の技法点[cite: 3]
+    max_total_t = None
+    for t in range(1250, -1, -1):
+        if calculate_expressiveness_score(intonation_min / 10.0, t / 12.5) <= expressiveness_max:
+            max_total_t = t
+            break
+
+    if min_total_t is None or max_total_t is None or min_total_t > max_total_t:
+        return []
+
+    # 算出した合計技法点の範囲から、基礎点を引いてボーナス範囲を決定[cite: 3]
     possible_bonuses = []
-    debug_logs = [] # 検証用ログ
-    
-    for total_technique in range(0, 1251):
-        technique_raw_scale = total_technique / 12.5
-        
-        # 境界条件チェック[cite: 3]
-        potential_score_min = calculate_expressiveness_score(intonation_max / 10.0, technique_raw_scale)
-        potential_score_max = calculate_expressiveness_score(intonation_min / 10.0, technique_raw_scale)
-        
-        is_score_within_range = not (potential_score_max < expressiveness_min or potential_score_min > expressiveness_max)
-        
-        if is_score_within_range:
-            current_bonus = total_technique - base_technique_points
-            if current_bonus >= 0:
-                possible_bonuses.append(current_bonus)
-                debug_logs.append(f"Total:{total_technique} (Bonus:{current_bonus}) | ScoreRange: {int(potential_score_min)}-{int(potential_score_max)} -> OK")
-                
-    return possible_bonuses, debug_logs, (intonation_min, intonation_max, expressiveness_min, expressiveness_max)
+    for t in range(min_total_t, max_total_t + 1):
+        bonus = t - base_technique_points
+        if bonus >= 0:
+            possible_bonuses.append(bonus)
+            
+    return possible_bonuses
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="JH Bonus Analyzer", page_icon="🎯")
-
 st.title("💥 ジャストヒットボーナス解析")
 
-analysis_mode = st.radio(
-    "解析に使用するデータの精度を選択してください",
-    ("【予測】みかけの数値から推定する", "【正確】実数値から特定する"),
-    horizontal=True
-)
-
+analysis_mode = st.radio("解析精度を選択", ("【予測】みかけの数値から推定する", "【正確】実数値から特定する"), horizontal=True)
 st.divider()
 
 if analysis_mode == "【予測】みかけの数値から推定する":
     st.subheader("🔍 みかけ数値推定モード")
-    
-    col_intonation, col_expressiveness = st.columns(2)
-    with col_intonation:
-        input_disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99)
-    with col_expressiveness:
-        input_disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
-    
+    col_i, col_s = st.columns(2)
+    with col_i: input_disp_i = st.number_input("みかけの抑揚 (0-100)", 0, 100, 99)
+    with col_s: input_disp_s = st.number_input("みかけの表現力 (0-100)", 0, 100, 99)
     input_base_t = st.number_input("基礎技法点 (0-1250)", 0, 1250, 800)
 
-    if st.button("あり得る範囲を計算", type="primary", use_container_width=True):
-        bonus_results, logs, bounds = solve_possible_bonus_range(input_disp_i, input_disp_s, input_base_t)
-        
-        # 検証用データの表示
-        with st.expander("🛠️ 計算ロジック検証用ログ"):
-            st.write(f"**内部探索範囲:**")
-            st.write(f"- 抑揚実数: {bounds[0]} ～ {bounds[1]}")
-            st.write(f"- 表現力目標: {bounds[2]} ～ {bounds[3]}")
-            st.write("**判定に合格した技法点一覧:**")
-            if logs:
-                for log in logs:
-                    st.text(log)
-            else:
-                st.write("なし")
-
-        if bonus_results:
-            min_bonus, max_bonus = min(bonus_results), max(bonus_results)
-            st.success("計算完了")
-            if min_bonus == max_bonus:
-                st.metric("確定ボーナス値", f"{min_bonus} 点")
-            else:
-                st.subheader(f"推定範囲: {min_bonus} ～ {max_bonus} 点")
+    if st.button("範囲を類推する", type="primary", use_container_width=True):
+        results = solve_possible_bonus_range(input_disp_i, input_disp_s, input_base_t)
+        if results:
+            b_min, b_max = min(results), max(results)
+            st.success("解析完了")
+            if b_min == b_max: st.metric("確定ボーナス値", f"{b_min} 点")
+            else: st.subheader(f"推定範囲: {b_min} ～ {b_max} 点")
         else:
-            st.error("条件に合うボーナス値が見つかりませんでした。入力値を確認してください。")
+            st.error("条件に合うボーナスが見つかりませんでした。")
 
 else:
     st.subheader("📋 詳細リザルト解析モード")
-    
-    col_real_i, col_real_s = st.columns(2)
-    with col_real_i:
-        input_real_i = st.number_input("実際の抑揚 (0-1000)", 0, 1000, 990)
-    with col_real_s:
-        input_real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 99750)
-    
+    col_ri, col_rs = st.columns(2)
+    with col_ri: input_real_i = st.number_input("実際の抑揚 (0-1000)", 0, 1000, 990)
+    with col_rs: input_real_s = st.number_input("実際の表現力 (0-100000)", 0, 100000, 99750)
     input_base_t_precise = st.number_input("基礎技法点 (0-1250)", 0, 1250, 800)
 
-    if st.button("ボーナスを特定する", type="primary", use_container_width=True):
-        best_technique_total, minimum_difference = 0, float('inf')
-        detailed_logs = []
+    if st.button("ボーナスを特定", type="primary", use_container_width=True):
+        best_t, min_diff = 0, float('inf')
+        for t in range(0, 1251):
+            diff = abs(calculate_expressiveness_score(input_real_i / 10.0, t / 12.5) - input_real_s)
+            if diff < min_diff: min_diff, best_t = diff, t
         
-        for trial_technique in range(0, 1251):
-            calculated_score = calculate_expressiveness_score(input_real_i / 10.0, trial_technique / 12.5)
-            difference = abs(calculated_score - input_real_s)
-            
-            if difference < minimum_difference:
-                minimum_difference = difference
-                best_technique_total = trial_technique
-                detailed_logs.append(f"New Best! Total:{trial_technique}, Score:{int(calculated_score)}, Diff:{int(difference)}")
-        
-        with st.expander("🛠️ 最小誤差探索ログ"):
-            for log in detailed_logs:
-                st.text(log)
-        
-        calculated_bonus = best_technique_total - input_base_t_precise
-        if calculated_bonus < 0:
-            st.error(f"矛盾を検知しました。基礎点({input_base_t_precise})が算出合計値({best_technique_total})を上回っています。")
+        bonus = best_t - input_base_t_precise
+        if bonus < 0: st.error("基礎点が合計値を上回っています。")
         else:
             st.success("解析完了")
-            st.metric("ジャストヒットボーナス", f"{calculated_bonus} 点")
-            st.caption(f"（内部合計技法点: {best_technique_total}）")
+            st.metric("ジャストヒットボーナス", f"{bonus} 点")
+            st.caption(f"（合計技法点: {best_t}）")
 
 st.divider()
 st.caption("© 2026 Zawasow_lab")
